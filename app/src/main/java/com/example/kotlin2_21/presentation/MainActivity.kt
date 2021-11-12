@@ -3,15 +3,16 @@ package com.example.kotlin2_21.presentation
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.RecyclerView
 import com.example.kotlin2_21.databinding.ActivityMainBinding
-import com.example.kotlin2_21.domain.ShopItem
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var viewModel: MainViewModel
+    private var shopListAdapter = ShopListAdapter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -20,38 +21,59 @@ class MainActivity : AppCompatActivity() {
 
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
-/*
         viewModel.shopList.observe(this) {
-            Log.e("MainActivityTest", "MainActivity: $it")
+            shopListAdapter.shopList = it
+            setUpRecycler()
         }
-*/
+    }
 
-        viewModel.deleteShopItem(viewModel.getItem(0))
+    private fun setUpRecycler() {
+        with(binding.mainRv) {
+            adapter = shopListAdapter
 
-//        viewModel.changeEnableState(viewModel.getItem(6))
+            recycledViewPool.setMaxRecycledViews(
+                ShopListAdapter.VIEW_TYPE_ENABLE,
+                ShopListAdapter.MAX_VIEW_SIZE
+            )
 
-        viewModel.shopList.observe(this) {
-
-            binding.mainRv.adapter = MainAdapter(it, object : MainAdapter.ItemListener {
-
-                override fun changeItemEnable(shopItem: ShopItem, position: Int) {
-                    Log.e("TAG", "ENABLE: $shopItem ")
-                    viewModel.changeEnableState(it[position])
-                }
-
-                override fun changeUnable(shopItem: ShopItem, position: Int) {
-                    Log.e("TAG", "UNABLE: $shopItem ")
-                    viewModel.changeEnableState(it[position])
-                }
-
-                override fun message(message: String) {
-//                    Log.e("TAG", message)
-                }
-
-                override fun changeColor(color: Int, view: View) {
-                    view.setBackgroundColor(color)
-                }
-            })
+            recycledViewPool.setMaxRecycledViews(
+                ShopListAdapter.VIEW_TYPE_DISABLE,
+                ShopListAdapter.MAX_VIEW_SIZE
+            )
         }
+        setUpListeners()
+        setUpSwipeListener(binding.mainRv)
+    }
+
+    private fun setUpSwipeListener(recycler: RecyclerView) {
+        val callback = object :
+            ItemTouchHelper.SimpleCallback(
+                0,
+                ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
+            ) {
+
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                return false
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                val item = shopListAdapter.shopList[viewHolder.adapterPosition]
+                viewModel.deleteShopItem(item)
+            }
+        }
+        val itemTouchHelper = ItemTouchHelper(callback)
+        itemTouchHelper.attachToRecyclerView(recycler)
+    }
+
+    private fun setUpListeners() {
+        shopListAdapter.onShopClickListener = {
+            Log.e("TAG", "setUpRecycler: CLICKED $it")
+            viewModel.changeEnableState(it)
+        }
+
     }
 }
